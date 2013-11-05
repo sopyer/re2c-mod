@@ -55,6 +55,7 @@ extern std::string condGoto;
 extern std::string condGotoParam;
 extern std::string yychConversion;
 extern std::string yyFillLength;
+extern std::string yyReadInput;
 extern std::string yySetConditionParam;
 extern std::string yySetStateParam;
 extern std::string yySetupRule;

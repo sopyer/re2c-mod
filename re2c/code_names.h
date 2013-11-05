@@ -22,6 +22,10 @@ inline std::string& CodeNames::operator [] (const char * what)
 	{
 		return it->second;
 	}
+	else if (strcmp("YYREADINPUT", what) == 0)
+	{
+        return insert(std::make_pair(std::string("YYREADINPUT"), std::string("YYREADINPUT(@@)"))).first->second;
+	}
 	else
 	{
 		return insert(std::make_pair(std::string(what), std::string(what))).first->second;

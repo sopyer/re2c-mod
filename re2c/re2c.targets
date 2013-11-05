@@ -1,0 +1,92 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <PropertyPageSchema
+      Include="$(MSBuildThisFileDirectory)$(MSBuildThisFileName).xml" />
+    <AvailableItemName
+      Include="re2c">
+      <Targets>_re2c</Targets>
+    </AvailableItemName>
+  </ItemGroup>
+  <UsingTask
+    TaskName="re2c"
+    TaskFactory="XamlTaskFactory"
+    AssemblyName="Microsoft.Build.Tasks.v4.0">
+    <Task>$(MSBuildThisFileDirectory)$(MSBuildThisFileName).xml</Task>
+  </UsingTask>
+  <Target
+    Name="_re2c"
+    BeforeTargets="$(re2cBeforeTargets)"
+    AfterTargets="$(re2cAfterTargets)"
+    Condition="'@(re2c)' != ''"
+    DependsOnTargets="$(re2cDependsOn);Computere2cOutput"
+    Outputs="@(re2c-&gt;Metadata('Outputs')-&gt;Distinct())"
+    Inputs="@(re2c);%(re2c.AdditionalDependencies);$(MSBuildProjectFile)">
+    <ItemGroup
+      Condition="'@(SelectedFiles)' != ''">
+      <re2c
+        Remove="@(re2c)"
+        Condition="'%(Identity)' != '@(SelectedFiles)'" />
+    </ItemGroup>
+    <ItemGroup>
+      <re2c_tlog
+        Include="%(re2c.Outputs)"
+        Condition="'%(re2c.Outputs)' != '' and '%(re2c.ExcludedFromBuild)' != 'true'">
+        <Source>@(re2c, '|')</Source>
+      </re2c_tlog>
+    </ItemGroup>
+    <Message
+      Importance="High"
+      Text="%(re2c.ExecutionDescription)" />
+    <WriteLinesToFile
+      Condition="'@(re2c_tlog)' != '' and '%(re2c_tlog.ExcludedFromBuild)' != 'true'"
+      File="$(IntDir)$(ProjectName).write.1.tlog"
+      Lines="^%(re2c_tlog.Source);@(re2c_tlog-&gt;'%(Fullpath)')" />
+    <re2c
+      Condition="'@(re2c)' != '' and '%(re2c.ExcludedFromBuild)' != 'true'"
+      CommandLineTemplate="%(re2c.CommandLineTemplate)"
+      NoLineInfo="%(re2c.NoLineInfo)"
+      NoGenerationDate="%(re2c.NoGenerationDate)"
+      StorableState="%(re2c.StorableState)"
+      DebugOutput="%(re2c.DebugOutput)"
+      SinglePass="%(re2c.SinglePass)"
+      Conditions="%(re2c.Conditions)"
+      OutputFileName="%(re2c.OutputFileName)"
+      TypeHeader="%(re2c.TypeHeader)"
+      Version="%(re2c.Version)"
+      CharacterSet="%(re2c.CharacterSet)"
+      Optimization="%(re2c.Optimization)"
+      AdditionalOptions="%(re2c.AdditionalOptions)"
+      Inputs="@(re2c)" />
+  </Target>
+  <PropertyGroup>
+    <ComputeLinkInputsTargets>
+            $(ComputeLinkInputsTargets);
+            Computere2cOutput;
+          </ComputeLinkInputsTargets>
+    <ComputeLibInputsTargets>
+            $(ComputeLibInputsTargets);
+            Computere2cOutput;
+          </ComputeLibInputsTargets>
+  </PropertyGroup>
+  <Target
+    Name="Computere2cOutput"
+    Condition="'@(re2c)' != ''">
+    <ItemGroup>
+      <re2cDirsToMake
+        Condition="'@(re2c)' != '' and '%(re2c.ExcludedFromBuild)' != 'true'"
+        Include="%(re2c.Outputs)" />
+      <Link
+        Include="%(re2cDirsToMake.Identity)"
+        Condition="'%(Extension)'=='.obj' or '%(Extension)'=='.res' or '%(Extension)'=='.rsc' or '%(Extension)'=='.lib'" />
+      <Lib
+        Include="%(re2cDirsToMake.Identity)"
+        Condition="'%(Extension)'=='.obj' or '%(Extension)'=='.res' or '%(Extension)'=='.rsc' or '%(Extension)'=='.lib'" />
+      <ImpLib
+        Include="%(re2cDirsToMake.Identity)"
+        Condition="'%(Extension)'=='.obj' or '%(Extension)'=='.res' or '%(Extension)'=='.rsc' or '%(Extension)'=='.lib'" />
+    </ItemGroup>
+    <MakeDir
+      Directories="@(re2cDirsToMake-&gt;'%(RootDir)%(Directory)')" />
+  </Target>
+</Project>

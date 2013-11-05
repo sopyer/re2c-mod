@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup
+    Condition="'$(re2cBeforeTargets)' == '' and '$(re2cAfterTargets)' == '' and '$(ConfigurationType)' != 'Makefile'">
+    <re2cBeforeTargets>Midl</re2cBeforeTargets>
+    <re2cAfterTargets>CustomBuild</re2cAfterTargets>
+  </PropertyGroup>
+  <PropertyGroup>
+    <re2cDependsOn
+      Condition="'$(ConfigurationType)' != 'Makefile'">_SelectedFiles;$(re2cDependsOn)</re2cDependsOn>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <re2c>
+      <NoLineInfo>False</NoLineInfo>
+      <NoGenerationDate>False</NoGenerationDate>
+      <StorableState>False</StorableState>
+      <DebugOutput>False</DebugOutput>
+      <SinglePass>False</SinglePass>
+      <Conditions>False</Conditions>
+      <OutputFileName>%(RootDir)%(Directory)%(Filename).cpp</OutputFileName>
+      <Version>0</Version>
+      <CharacterSet>0</CharacterSet>
+      <Optimization>2</Optimization>
+      <CommandLineTemplate>re2c.exe [AllOptions] [AdditionalOptions] [inputs]</CommandLineTemplate>
+      <Outputs>%(OutputFileName)</Outputs>
+      <ExecutionDescription>Compiling regular expressions...</ExecutionDescription>
+    </re2c>
+  </ItemDefinitionGroup>
+</Project>

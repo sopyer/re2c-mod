@@ -71,6 +71,7 @@ std::string condGoto("goto @@;");
 std::string condGotoParam("@@");
 std::string yychConversion("");
 std::string yyFillLength("@@");
+std::string yyReadInput("@@");
 std::string yySetConditionParam("@@");
 std::string yySetStateParam("@@");
 std::string yySetupRule("");

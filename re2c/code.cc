@@ -69,6 +69,11 @@ static void genYYFill(std::ostream &o, uint, uint need)
 	}
 }
 
+static void genReadYYCH(std::ostream &o, uint ind)
+{
+	o << indent(ind) << mapCodeName["yych"] << " = " << yychConversion << replaceParam(mapCodeName["YYREADINPUT"], yyReadInput, mapCodeName["YYCURSOR"]) << ";\n";
+}
+
 static std::string genGetState()
 {
 	if (bUseYYGetStateNaked)
@@ -371,7 +376,7 @@ static void genGoTo(std::ostream &o, uint ind, const State *from, const State *t
 
 	if (readCh && from->label + 1 != to->label)
 	{
-		o << indent(ind) << mapCodeName["yych"] << " = " << yychConversion << "*" << mapCodeName["YYCURSOR"] << ";\n";
+		genReadYYCH(o, ind);
 		readCh = false;
 	}
 
@@ -381,18 +386,13 @@ static void genGoTo(std::ostream &o, uint ind, const State *from, const State *t
 
 static void genIf(std::ostream &o, uint ind, const char *cmp, uint v, bool &readCh)
 {
-	o << indent(ind) << "if (";
 	if (readCh)
 	{
-		o << "(" << mapCodeName["yych"] << " = " << yychConversion << "*" << mapCodeName["YYCURSOR"] << ")";
+        genReadYYCH(o, ind);
 		readCh = false;
 	}
-	else
-	{
-		o << mapCodeName["yych"];
-	}
 
-	o << " " << cmp << " ";
+    o << indent(ind) << "if (" << mapCodeName["yych"] << " " << cmp << " ";
 	prtChOrHex(o, v);
 	o << ") ";
 }
@@ -449,12 +449,10 @@ static void need(std::ostream &o, uint ind, uint n, bool & readCh, bool bSetMark
 	{
 		if (bSetMarker)
 		{
-			o << indent(ind) << mapCodeName["yych"] << " = " << yychConversion << "*(" << mapCodeName["YYMARKER"] << " = " << mapCodeName["YYCURSOR"] << ");\n";
+			o << indent(ind) << mapCodeName["YYMARKER"] << " = " << mapCodeName["YYCURSOR"] << ";\n";
 		}
-		else
-		{
-			o << indent(ind) << mapCodeName["yych"] << " = " << yychConversion << "*" << mapCodeName["YYCURSOR"] << ";\n";
-		}
+
+        genReadYYCH(o, ind);
 		readCh = false;
 	}
 }
@@ -466,20 +464,20 @@ void Match::emit(std::ostream &o, uint ind, bool &readCh, const std::string&) co
 		return;
 	}
 
-	if (state->link)
+	o << indent(ind) << "++" << mapCodeName["YYCURSOR"] << ";\n";
+
+	if (!state->link)
 	{
-		o << indent(ind) << "++" << mapCodeName["YYCURSOR"] << ";\n";
-	}
-	else if (!readAhead())
-	{
-		/* do not read next char if match */
-		o << indent(ind) << "++" << mapCodeName["YYCURSOR"] << ";\n";
-		readCh = true;
-	}
-	else
-	{
-		o << indent(ind) << mapCodeName["yych"] << " = " << yychConversion << "*++" << mapCodeName["YYCURSOR"] << ";\n";
-		readCh = false;
+		if (readAhead())
+		{
+			genReadYYCH(o, ind);
+			readCh = false;
+		}
+		else
+		{
+			/* do not read next char if match */
+			readCh = true;
+		}
 	}
 
 	if (state->link)
@@ -490,9 +488,9 @@ void Match::emit(std::ostream &o, uint ind, bool &readCh, const std::string&) co
 
 void Enter::emit(std::ostream &o, uint ind, bool &readCh, const std::string&) const
 {
+	o << indent(ind) << "++" << mapCodeName["YYCURSOR"] << ";\n";
 	if (state->link)
 	{
-		o << indent(ind) << "++" << mapCodeName["YYCURSOR"] << ";\n";
 		if (vUsedLabels.count(label))
 		{
 			o << labelPrefix << label << ":\n";
@@ -502,7 +500,7 @@ void Enter::emit(std::ostream &o, uint ind, bool &readCh, const std::string&) co
 	else
 	{
 		/* we shouldn't need 'rule-following' protection here */
-		o << indent(ind) << mapCodeName["yych"] << " = " << yychConversion << "*++" << mapCodeName["YYCURSOR"] << ";\n";
+		genReadYYCH(o, ind);
 		if (vUsedLabels.count(label))
 		{
 			o << labelPrefix << label << ":\n";
@@ -520,13 +518,10 @@ void Initial::emit(std::ostream &o, uint ind, bool &readCh, const std::string&) 
 
 	if (vUsedLabels.count(label+1))
 	{
-		if (state->link)
+		o << indent(ind) << "++" << mapCodeName["YYCURSOR"] << ";\n";
+		if (!state->link)
 		{
-			o << indent(ind) << "++" << mapCodeName["YYCURSOR"] << ";\n";
-		}
-		else
-		{
-			o << indent(ind) << mapCodeName["yych"] << " = " << yychConversion << "*++" << mapCodeName["YYCURSOR"] << ";\n";
+			genReadYYCH(o, ind);
 		}
 	}
 
@@ -541,7 +536,7 @@ void Initial::emit(std::ostream &o, uint ind, bool &readCh, const std::string&) 
 
 	if (dFlag)
 	{
-		o << indent(ind) << mapCodeName["YYDEBUG"] << "(" << label << ", *" << mapCodeName["YYCURSOR"] << ");\n";
+		o << indent(ind) << mapCodeName["YYDEBUG"] << "(" << label << ", " << replaceParam(mapCodeName["YYREADINPUT"], yyReadInput, mapCodeName["YYCURSOR"]) << ");\n";
 	}
 
 	if (state->link)
@@ -574,20 +569,21 @@ void Save::emit(std::ostream &o, uint ind, bool &readCh, const std::string&) con
 	{
 		if (bUsedYYMarker)
 		{
-			o << indent(ind) << mapCodeName["YYMARKER"] << " = ++" << mapCodeName["YYCURSOR"] << ";\n";
+			o << indent(ind) << "++" << mapCodeName["YYCURSOR"] << ";\n";
+			o << indent(ind) << mapCodeName["YYMARKER"] << " = " << mapCodeName["YYCURSOR"] << ";\n";
 		}
 		need(o, ind, state->depth, readCh, false);
 	}
 	else
 	{
+		o << indent(ind) << "++" << mapCodeName["YYCURSOR"] << ";\n";
 		if (bUsedYYMarker)
 		{
-			o << indent(ind) << mapCodeName["yych"] << " = " << yychConversion << "*(" << mapCodeName["YYMARKER"] << " = ++" << mapCodeName["YYCURSOR"] << ");\n";
+			o << indent(ind) << mapCodeName["YYMARKER"] << " = " << mapCodeName["YYCURSOR"] << ";\n";
 		}
-		else
-		{
-			o << indent(ind) << mapCodeName["yych"] << " = " << yychConversion << "*++" << mapCodeName["YYCURSOR"] << ";\n";
-		}
+
+		genReadYYCH(o, ind);
+
 		readCh = false;
 	}
 }
@@ -650,7 +646,7 @@ void Accept::emit(std::ostream &o, uint ind, bool &readCh, const std::string&) c
 
 		if (readCh) // shouldn't be necessary, but might become at some point
 		{
-			o << indent(ind) << mapCodeName["yych"] << " = " << yychConversion << "*" << mapCodeName["YYCURSOR"] << ";\n";
+			genReadYYCH(o, ind);
 			readCh = false;
 		}
 
@@ -979,13 +975,11 @@ void Go::genSwitch(std::ostream &o, uint ind, const State *from, const State *ne
 
 			if (readCh)
 			{
-				o << indent(ind) << "switch ((" << mapCodeName["yych"] << " = " << yychConversion << "*" << mapCodeName["YYCURSOR"] << ")) {\n";
+				genReadYYCH(o, ind);
 				readCh = false;
 			}
-			else
-			{
-				o << indent(ind) << "switch (" << mapCodeName["yych"] << ") {\n";
-			}
+
+			o << indent(ind) << "switch (" << mapCodeName["yych"] << ") {\n";
 		}
 
 		while (t != &sP[0])
@@ -1143,24 +1137,17 @@ void Go::genBase(std::ostream &o, uint ind, const State *from, const State *next
 
 void Go::genCpGoto(std::ostream &o, uint ind, const State *from, const State *next, bool &readCh) const
 {
-	std::string sYych;
-	
 	if (readCh)
 	{
-		sYych = "(" + mapCodeName["yych"] + " = " + yychConversion + "*" + mapCodeName["YYCURSOR"] + ")";
-	}
-	else
-	{
-		sYych = mapCodeName["yych"];
+		genReadYYCH(o, ind);
+		readCh = false;
 	}
 
-	readCh = false;
 	if (wFlag)
 	{
-		o << indent(ind) << "if (" << sYych <<" & ~0xFF) {\n";
+		o << indent(ind) << "if (" << mapCodeName["yych"] <<" & ~0xFF) {\n";
 		genBase(o, ind+1, from, next, readCh, 1);
 		o << indent(ind++) << "} else {\n";
-		sYych = mapCodeName["yych"];
 	}
 	else
 	{
@@ -1193,7 +1180,7 @@ void Go::genCpGoto(std::ostream &o, uint ind, const State *from, const State *ne
 		}
 	}
 	o << indent(--ind) << "};\n";
-	o << indent(ind) << "goto *" << mapCodeName["yytarget"] << "[" << sYych << "];\n";
+	o << indent(ind) << "goto *" << mapCodeName["yytarget"] << "[" << mapCodeName["yych"] << "];\n";
 	o << indent(--ind) << "}\n";
 }
 
@@ -1256,7 +1243,6 @@ void Go::genGoto(std::ostream &o, uint ind, const State *from, const State *next
 			if (to && to->isBase)
 			{
 				const BitMap *b = BitMap::find(to);
-				std::string sYych;
 
 				if (b && matches(b->go, b->on, this, to))
 				{
@@ -1265,17 +1251,12 @@ void Go::genGoto(std::ostream &o, uint ind, const State *from, const State *next
 					go.unmap(this, to);
 					if (readCh)
 					{
-						sYych = "(" + mapCodeName["yych"] + " = " + yychConversion + "*" + mapCodeName["YYCURSOR"] + ")";
+						genReadYYCH(o, ind);
+						readCh = false;
 					}
-					else
-					{
-						sYych = mapCodeName["yych"];
-					}
-					readCh = false;
 					if (wFlag)
 					{
-						o << indent(ind) << "if (" << sYych << " & ~0xFF) {\n";
-						sYych = mapCodeName["yych"];
+						o << indent(ind) << "if (" << mapCodeName["yych"] << " & ~0xFF) {\n";
 						genBase(o, ind+1, from, next, readCh, 1);
 						o << indent(ind) << "} else ";
 					}
@@ -1284,7 +1265,7 @@ void Go::genGoto(std::ostream &o, uint ind, const State *from, const State *next
 						o << indent(ind);
 					}
 					bUsedYYBitmap = true;
-					o << "if (" << mapCodeName["yybm"] << "[" << b->i << "+" << sYych << "] & ";
+					o << "if (" << mapCodeName["yybm"] << "[" << b->i << "+" << mapCodeName["yych"] << "] & ";
 					if (yybmHexTable)
 					{
 						prtHex(o, b->m);
@@ -1315,7 +1296,7 @@ void State::emit(std::ostream &o, uint ind, bool &readCh, const std::string& con
 	}
 	if (dFlag && !action->isInitial())
 	{
-		o << indent(ind) << mapCodeName["YYDEBUG"] << "(" << label << ", *" << mapCodeName["YYCURSOR"] << ");\n";
+		o << indent(ind) << mapCodeName["YYDEBUG"] << "(" << label << ", " << replaceParam(mapCodeName["YYREADINPUT"], yyReadInput, mapCodeName["YYCURSOR"]) << ");\n";
 	}
 	if (isPreCtxt)
 	{
@@ -2296,6 +2277,7 @@ void Scanner::config(const Str& cfg, const Str& val)
 		mapDefineKeys.insert("define:YYCURSOR");
 		mapDefineKeys.insert("define:YYDEBUG");
 		mapDefineKeys.insert("define:YYFILL");
+		mapDefineKeys.insert("define:YYREADINPUT");
 		mapDefineKeys.insert("define:YYGETCONDITION");
 		mapDefineKeys.insert("define:YYGETSTATE");
 		mapDefineKeys.insert("define:YYLIMIT");
@@ -2360,6 +2342,10 @@ void Scanner::config(const Str& cfg, const Str& val)
 	{
 		yyFillLength = strVal;
 		bUseYYFillParam = false;
+	}
+	else if (cfg.to_string() == "define:YYREADINPUT@in")
+	{
+		yyReadInput = strVal;
 	}
 	else if (cfg.to_string() == "define:YYSETCONDITION@cond")
 	{
